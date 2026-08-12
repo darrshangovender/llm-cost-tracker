@@ -2,7 +2,8 @@
 
 # llm-cost-tracker — token, cost, and latency observability for LLM calls
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]
+[![tests](https://github.com/darrshangovender/llm-cost-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/darrshangovender/llm-cost-tracker/actions/workflows/tests.yml)(LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
 [![Anthropic](https://img.shields.io/badge/Anthropic-Claude-CC785C)](https://anthropic.com)
