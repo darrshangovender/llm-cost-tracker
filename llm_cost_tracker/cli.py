@@ -7,7 +7,7 @@ import csv
 import json
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rich.console import Console
 from rich.table import Table
@@ -21,8 +21,18 @@ def parse_since(s: str) -> datetime:
     if m:
         n, unit = int(m.group(1)), m.group(2)
         delta = {"h": timedelta(hours=n), "d": timedelta(days=n), "w": timedelta(weeks=n)}[unit]
-        return datetime.now(timezone.utc) - delta
-    return datetime.fromisoformat(s).replace(tzinfo=timezone.utc) if "T" in s else datetime.fromisoformat(s + "T00:00:00+00:00")
+        return datetime.now(UTC) - delta
+    if "T" not in s:
+        return datetime.fromisoformat(s + "T00:00:00+00:00")
+    parsed = datetime.fromisoformat(s)
+    if parsed.tzinfo is None:
+        # Naive input: the docstring says timestamps are UTC, so label it UTC.
+        return parsed.replace(tzinfo=UTC)
+    # Aware input must be *converted*, not relabelled. `.replace(tzinfo=utc)` on
+    # "2026-08-14T00:00:00+02:00" reinterpreted it as midnight UTC rather than
+    # 22:00 the previous day, silently shifting the reporting window by the
+    # offset and dropping two hours of calls out of the report.
+    return parsed.astimezone(UTC)
 
 
 def cmd_stats(args) -> int:
@@ -57,13 +67,16 @@ def cmd_top(args) -> int:
     store = default_store()
     since = parse_since(args.since).isoformat()
     # Tag values live in the JSON blob — pull them out with SQLite's json_extract.
+    # The path is a bound parameter, not an f-string: `--by` is user input, and
+    # interpolating it put arbitrary SQL inside the statement
+    # (`--by "x') AS key, 1 AS calls FROM llm_calls --"`).
     rows = store.query(
-        f"SELECT json_extract(tags_json, '$.{args.by}') AS key, "
+        "SELECT json_extract(tags_json, ?) AS key, "
         "COUNT(*) AS calls, "
         "ROUND(SUM(cost_usd), 4) AS cost_usd "
         "FROM llm_calls WHERE ts >= ? AND key IS NOT NULL "
         "GROUP BY key ORDER BY cost_usd DESC LIMIT ?",
-        (since, args.limit),
+        (f"$.{args.by}", since, args.limit),
     )
     console = Console()
     table = Table(title=f"Top {args.limit} by {args.by} since {args.since}")
